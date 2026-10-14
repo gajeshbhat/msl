@@ -10,7 +10,7 @@ use crate::rpc::status;
 use crate::{archive, config, reaper, sys};
 use nix::mount::MsFlags;
 use nix::unistd::{chdir, chroot};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ffi::CString;
 use std::io::{BufRead, BufReader};
 use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd};
@@ -52,6 +52,19 @@ pub(crate) fn distro_init_pid(id: &str) -> Option<i32> {
 fn running() -> &'static Mutex<HashMap<String, Running>> {
     static R: OnceLock<Mutex<HashMap<String, Running>>> = OnceLock::new();
     R.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn starting() -> &'static Mutex<HashSet<String>> {
+    static S: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+    S.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+struct StartingDistro(String);
+
+impl Drop for StartingDistro {
+    fn drop(&mut self) {
+        starting().lock().unwrap().remove(&self.0);
+    }
 }
 
 /// Distros being stopped: out of `running()`, but their processes (and mount
@@ -299,10 +312,22 @@ pub fn main() -> sys::Result<()> {
     sys::mount_fs("tmpfs", "/mnt/msl", "tmpfs", MsFlags::MS_NOSUID | MsFlags::MS_NODEV, Some("mode=0755"))?;
     nix::mount::mount(None::<&str>, "/mnt/msl", None::<&str>, MsFlags::MS_SHARED, None::<&str>)?;
 
-    // cgroup v2: delegate controllers to /msl/<distro>.
-    let _ = sys::write_file("/sys/fs/cgroup/cgroup.subtree_control", "+cpu +memory +pids +io");
-    let _ = sys::mkdir_p("/sys/fs/cgroup/msl");
-    let _ = sys::write_file("/sys/fs/cgroup/msl/cgroup.subtree_control", "+cpu +memory +pids +io");
+    // cgroup v2: delegate controllers to /msl/<distro>. A distro must not
+    // report ready if its manager cannot create per-launch cgroups.
+    let controllers = ["cpu", "memory", "pids", "io"];
+    sys::write_file("/sys/fs/cgroup/cgroup.subtree_control", "+cpu +memory +pids +io")?;
+    sys::mkdir_p("/sys/fs/cgroup/msl")?;
+    sys::write_file("/sys/fs/cgroup/msl/cgroup.subtree_control", "+cpu +memory +pids +io")?;
+    for root in ["/sys/fs/cgroup", "/sys/fs/cgroup/msl"] {
+        let enabled = std::fs::read_to_string(format!("{root}/cgroup.subtree_control"))?;
+        let available = std::fs::read_to_string(format!("{root}/cgroup.controllers"))?;
+        if controllers.iter().any(|controller| {
+            !enabled.split_whitespace().any(|v| v == *controller)
+                || !available.split_whitespace().any(|v| v == *controller)
+        }) {
+            return Err(format!("cgroup controllers were not delegated at {root}").into());
+        }
+    }
 
     // BusyBox applets for `msl --debug-shell` (the VM root namespace has no distro).
     if Path::new("/bin/busybox").exists() {
@@ -477,12 +502,64 @@ fn cgroup_of(id: &str) -> PathBuf {
     Path::new("/sys/fs/cgroup/msl").join(id)
 }
 
+struct PendingCgroup {
+    path: PathBuf,
+    keep: bool,
+}
+
+impl Drop for PendingCgroup {
+    fn drop(&mut self) {
+        if !self.keep {
+            let _ = sys::write_file(self.path.join("cgroup.kill"), "1");
+            remove_cgroup_tree(&self.path);
+        }
+    }
+}
+
+fn prepare_distro_cgroup(id: &str) -> Result<PendingCgroup, Status> {
+    check_id(id)?;
+    let path = cgroup_of(id);
+    if path.exists() && !remove_cgroup_tree(&path) {
+        return Err(Status::failed_precondition("old distro cgroup is still busy"));
+    }
+    std::fs::create_dir(&path).map_err(|e| status(format!("create distro cgroup: {e}")))?;
+    let result = sys::mkdir_p(path.join("msl-agent"));
+    if let Err(e) = result {
+        let _ = sys::write_file(path.join("cgroup.kill"), "1");
+        remove_cgroup_tree(&path);
+        return Err(status(e));
+    }
+    Ok(PendingCgroup { path, keep: false })
+}
+
+fn enable_distro_cgroup(id: &str) -> Result<(), Status> {
+    let path = cgroup_of(id);
+    sys::write_file(path.join("cgroup.subtree_control"), "+cpu +memory +pids +io").map_err(status)?;
+    let enabled = std::fs::read_to_string(path.join("cgroup.subtree_control")).map_err(status)?;
+    let available = std::fs::read_to_string(path.join("cgroup.controllers")).map_err(status)?;
+    let required = ["cpu", "memory", "pids", "io"];
+    if required.iter().any(|name| {
+        !enabled.split_whitespace().any(|v| v == *name)
+            || !available.split_whitespace().any(|v| v == *name)
+    }) {
+        return Err(Status::failed_precondition("required cgroup controllers were not delegated to distro"));
+    }
+    Ok(())
+}
+
 /// Blocking: launch msl-distro-init and wait for its agent to be ready.
 fn start_blocking(req: pb::StartDistroRequest) -> Result<pb::StartDistroReply, Status> {
     let t0 = Instant::now();
     if let Some(r) = running().lock().unwrap().get(&req.id) {
         return Ok(pb::StartDistroReply { agent_port: r.port, systemd: r.systemd, start_seconds: 0.0 });
     }
+    {
+        let mut starts = starting().lock().unwrap();
+        if !starts.insert(req.id.clone()) {
+            return Err(Status::failed_precondition("distribution is already starting"));
+        }
+    }
+    let starting = StartingDistro(req.id.clone());
     if req.own_disk && !attached().lock().unwrap().contains_key(&req.id) {
         return Err(Status::failed_precondition("the distribution's disk is not attached"));
     }
@@ -494,7 +571,10 @@ fn start_blocking(req: pb::StartDistroRequest) -> Result<pb::StartDistroReply, S
     // Until the distro has pivoted into its root (it reports `systemd` after
     // that), its mount namespace holds every other distro's disk too.
     let mut mount_guard = Some(mount_lock().lock().unwrap());
-    remove_cgroup_tree(&cgroup_of(&req.id));
+    if let Some(r) = running().lock().unwrap().get(&req.id) {
+        return Ok(pb::StartDistroReply { agent_port: r.port, systemd: r.systemd, start_seconds: 0.0 });
+    }
+    let mut pending_cgroup = prepare_distro_cgroup(&req.id)?;
     let port = {
         let map = running().lock().unwrap();
         (FIRST_AGENT_PORT..).find(|p| !map.values().any(|r| r.port == *p)).unwrap()
@@ -502,9 +582,13 @@ fn start_blocking(req: pb::StartDistroRequest) -> Result<pb::StartDistroReply, S
     let (rd, wr) = nix::unistd::pipe().map_err(status)?;
     sys::set_cloexec(rd.as_raw_fd(), true);
     sys::set_cloexec(wr.as_raw_fd(), false);
+    let (delegation_rd, delegation_wr) = nix::unistd::pipe().map_err(status)?;
+    sys::set_cloexec(delegation_rd.as_raw_fd(), false);
+    sys::set_cloexec(delegation_wr.as_raw_fd(), true);
     let cfg = serde_json::json!({
         "id": req.id, "name": req.name, "hostname": req.hostname,
         "rootfs": rootfs, "port": port, "ready_fd": wr.as_raw_fd(),
+        "delegation_fd": delegation_rd.as_raw_fd(),
         "nameservers": if req.dns_tunneling {
             vec![crate::dns::STUB_ADDR.to_string()]
         } else if !req.dns_proxy && !req.host_dns_servers.is_empty() {
@@ -519,6 +603,7 @@ fn start_blocking(req: pb::StartDistroRequest) -> Result<pb::StartDistroReply, S
     let supervisor = child.id() as i32;
     drop(cmd);
     drop(wr);
+    drop(delegation_rd);
 
     let (tx, rx) = std::sync::mpsc::channel();
     let rd = rd.into_raw_fd();
@@ -535,6 +620,21 @@ fn start_blocking(req: pb::StartDistroRequest) -> Result<pb::StartDistroReply, S
     loop {
         match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
             Ok(l) if l.starts_with("pid ") => pid = l[4..].trim().parse().unwrap_or(0),
+            Ok(l) if l == "delegated" => {
+                let result = enable_distro_cgroup(&req.id);
+                let ack = [u8::from(result.is_ok())];
+                let written = unsafe {
+                    libc::write(
+                        delegation_wr.as_raw_fd(),
+                        ack.as_ptr() as *const libc::c_void,
+                        ack.len(),
+                    )
+                };
+                if written != 1 {
+                    return Err(status("could not confirm distro cgroup delegation"));
+                }
+                result?;
+            }
             Ok(l) if l.starts_with("systemd ") => {
                 systemd = l.ends_with('1');
                 mount_guard.take();
@@ -546,6 +646,8 @@ fn start_blocking(req: pb::StartDistroRequest) -> Result<pb::StartDistroReply, S
     }
     let exited = std::sync::Arc::new((Mutex::new(false), std::sync::Condvar::new()));
     running().lock().unwrap().insert(req.id.clone(), Running { pid, supervisor, port, systemd, exited: exited.clone() });
+    pending_cgroup.keep = true;
+    drop(starting);
 
     // The only waiter on the supervisor: forgets the distro when it goes away
     // (stopped, or e.g. `poweroff` inside it) and wakes stop_blocking.
