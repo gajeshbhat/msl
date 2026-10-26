@@ -250,6 +250,8 @@ message StartDistroRequest {
   // dnsProxy=false uses the host's DNS servers when DNS tunneling is off.
   bool dns_proxy = 6;
   repeated string host_dns_servers = 7;
+  // The Mac's timezone name (America/Vancouver); empty leaves the image's own.
+  string timezone = 8;
 }
 
 message StartDistroReply {

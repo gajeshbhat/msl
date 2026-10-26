@@ -22,6 +22,8 @@ pub struct Cfg {
     pub id: String,
     pub name: String,
     pub hostname: String,
+    #[serde(default)]
+    pub timezone: String,
     pub rootfs: String,
     pub port: u32,
     pub ready_fd: RawFd,
@@ -217,6 +219,8 @@ fn setup_root(cfg: &Cfg, hostname: &str) -> sys::Result<()> {
         std::fs::write(format!("{r}/etc/hostname"), format!("{hostname}\n"))?;
     }
 
+    sync_timezone(&conf, r, &cfg.timezone);
+
     // [network] generateResolvConf (default true): replace the file/symlink.
     if conf.bool("network.generateresolvconf", true) && !cfg.nameservers.is_empty() {
         let p = format!("{r}/etc/resolv.conf");
@@ -260,6 +264,27 @@ fn run_agent(cfg: &Cfg, systemd: bool) -> ! {
         sys::write_fd_line(fd, "ready");
         unsafe { libc::close(fd) };
     })
+}
+
+/// [time] useWindowsTimezone (default true): follow the Mac's timezone.
+fn sync_timezone(conf: &config::Ini, root: &str, zone: &str) -> bool {
+    conf.bool("time.usewindowstimezone", true) && set_localtime(root, zone)
+}
+
+/// Point `<root>/etc/localtime` at the distro's zoneinfo file for `zone`. Leaves
+/// it alone (false) when the name is unsafe or the image has no such zone.
+fn set_localtime(root: &str, zone: &str) -> bool {
+    let safe = !zone.is_empty()
+        && !zone.split('/').any(|p| matches!(p, "" | "." | ".."))
+        && zone.chars().all(|c| c.is_ascii_alphanumeric() || "/_+-".contains(c));
+    let target = format!("/usr/share/zoneinfo/{zone}");
+    if !safe || !std::path::Path::new(&format!("{root}{target}")).is_file() {
+        return false;
+    }
+    // Symlink beside it and rename over it, so a failure never leaves no /etc/localtime.
+    let (tmp, link) = (format!("{root}/etc/.localtime.msl"), format!("{root}/etc/localtime"));
+    let _ = std::fs::remove_file(&tmp);
+    std::os::unix::fs::symlink(&target, &tmp).and_then(|_| std::fs::rename(&tmp, &link)).is_ok()
 }
 
 /// `systemctl is-system-running`'s output. The reaper owns every `waitpid`, so

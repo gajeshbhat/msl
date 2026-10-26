@@ -16,7 +16,7 @@
 // Source: msl/v1/msl.proto
 //
 // For information on using the generated types, please see the documentation:
-//   https://github.com/grpc/grpc-swift
+//   https://github.com/grpc/grpc-swift-2
 
 import GRPCCore
 import GRPCProtobuf
