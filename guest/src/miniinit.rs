@@ -601,7 +601,7 @@ fn start_blocking(req: pb::StartDistroRequest) -> Result<pb::StartDistroReply, S
     sys::set_cloexec(delegation_rd.as_raw_fd(), false);
     sys::set_cloexec(delegation_wr.as_raw_fd(), true);
     let cfg = serde_json::json!({
-        "id": req.id, "name": req.name, "hostname": req.hostname,
+        "id": req.id, "name": req.name, "hostname": req.hostname, "timezone": req.timezone,
         "rootfs": rootfs, "port": port, "ready_fd": wr.as_raw_fd(),
         "delegation_fd": delegation_rd.as_raw_fd(),
         "nameservers": if req.dns_tunneling {

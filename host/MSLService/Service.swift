@@ -815,6 +815,7 @@ public final class Service: @unchecked Sendable {
                 $0.id = d.id; $0.name = d.name; $0.hostname = host
                 $0.dnsTunneling = dns; $0.dnsProxy = dnsProxy; $0.hostDnsServers = hostDNSServers
                 $0.ownDisk = own
+                $0.timezone = TimeZone.autoupdatingCurrent.identifier
             })
         }
         // Distro init can adjust the shared CLOCK_REALTIME while bringing up
