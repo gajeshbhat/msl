@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
-/// Access control for the `~/.msl/distros` NFS view (#1), applied by msld to
+/// Access control for the `~/.msl/distros` NFS view, applied by msld to
 /// every ONC RPC call (RFC 5531) before it reaches the guest's NFS server.
 ///
 /// macOS's NFS client connects from the kernel as root, so neither the

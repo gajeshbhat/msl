@@ -40,7 +40,7 @@ public final class Service: @unchecked Sendable {
     /// Settings read at the last VM boot (like WSL, .mslconfig applies on the next start).
     private(set) var config = MSLConfig()
     let idle = IdleTracker()
-    /// Set on SIGTERM/SIGINT (logout, restart, shutdown, launchctl bootout, #52):
+    /// Set on SIGTERM/SIGINT (logout, restart, shutdown, launchctl bootout):
     /// the VM is going down for good, so nothing may start it again.
     private var terminating = false
     private var signalSources: [DispatchSourceSignal] = []
@@ -49,7 +49,7 @@ public final class Service: @unchecked Sendable {
     private let diskLock = NSLock()
     private(set) lazy var forwarder = PortForwarder(vm: vm, guest: guest)
     private(set) lazy var files = FileView(vm: vm, paths: paths, registry: registry, guest: guest)
-    /// The distros' own disks (#50).
+    /// The distros' own disks.
     private(set) lazy var ownDisks = DistroDisks(vm: vm, guest: guest)
 
     public init(paths: Paths = Paths()) {
@@ -76,7 +76,7 @@ public final class Service: @unchecked Sendable {
 
     public func serve() throws -> Never {
         try FileManager.default.createDirectory(at: paths.root, withIntermediateDirectories: true)
-        // Started by launchd (the LaunchAgent, #52): it already listens on msld.sock.
+        // Started by launchd (the LaunchAgent): it already listens on msld.sock.
         let launchd = launchdListener()
         let lfd = try launchd ?? listenUnix(paths.socket.path)
         _ = executableInode
@@ -667,7 +667,7 @@ public final class Service: @unchecked Sendable {
 
     /// Import a rootfs tar as a new distro on its own disk: `<location>/ext4.img`
     /// (the location defaults to msl's `distros/<id>`). With MSL_LEGACY_STORE
-    /// set (tests), it goes to the shared data.img instead, as before #50.
+    /// set (tests), it goes to the shared data.img instead, as before per-distro disks.
     func importDistro(name: String?, location: String?, vhdSize: UInt64?, conn: IPCConnection) throws -> DistroRecord {
         let id = UUID().uuidString.lowercased()
         let folder = URL(fileURLWithPath: location ?? paths.root.appendingPathComponent("distros/\(id)").path).standardizedFileURL

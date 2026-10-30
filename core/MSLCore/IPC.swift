@@ -289,7 +289,7 @@ extension sockaddr_un {
 
 /// Listen on a Unix socket path (removing a stale one).
 /// The listening socket launchd opened for msld (its LaunchAgent's `Sockets`
-/// entry "Listeners", #52), or nil when msld wasn't started by launchd.
+/// entry "Listeners"), or nil when msld wasn't started by launchd.
 public func launchdListener() -> Int32? {
     let fd = msl_launchd_socket("Listeners")
     return fd >= 0 ? fd : nil

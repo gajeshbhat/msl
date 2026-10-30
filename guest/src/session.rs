@@ -237,7 +237,7 @@ pub async fn run(req: RunRequest, tx: mpsc::Sender<Result<RunEvent, Status>>, di
 
 /// A raw (dial-back) stream: bytes from `local_in` go to the host, bytes from
 /// the host go to `local_out`. No framing: the connection is guest-initiated,
-/// which a stalled host reader can't freeze (#36), the host reads it directly,
+/// which a stalled host reader can't freeze, the host reads it directly,
 /// and its end is reported on the control channel (pb::Exited).
 struct RawBridge {
     sent: std::sync::mpsc::Receiver<()>,

@@ -10,7 +10,7 @@ import MSLCore
 /// and mounts **each distro separately**, as the user, at
 /// `~/.msl/distros/<name>`. msl-fileviewd accepts on that socket and relays each
 /// connection over vsock (msld opens the streams, RelayProcess), passing every
-/// RPC call through RPCFilter first (#1): only the user's and the kernel's
+/// RPC call through RPCFilter first: only the user's and the kernel's
 /// credentials, and MOUNT only while msld is mounting (`mountWindow`). Finder names a network volume after the last component
 /// of its export path, so every distro shows up in Finder's Locations under its
 /// own name (and logo, see DistroIcon), like Explorer's "Linux" node. macOS
@@ -33,7 +33,7 @@ final class FileView: @unchecked Sendable {
     /// Serializes syncLinks (it runs from several threads).
     private let syncLock = NSLock()
     /// Whether a distro's files can be served now: a distro on its own disk
-    /// only while that disk is attached (#50). Set by Service.
+    /// only while that disk is attached. Set by Service.
     var isViewable: (DistroRecord) -> Bool = { _ in true }
 
     init(vm: VMHost, paths: Paths, registry: Registry, guest: GuestClients) {

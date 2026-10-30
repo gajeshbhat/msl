@@ -10,11 +10,7 @@ The [MSL documentation site](https://onexay.github.io/msl-docs/) covers user-fac
 
 ## Design records
 
-Open design questions and decisions are tracked in GitHub issues with the [`design` label](https://github.com/onexay/msl/issues?q=label%3Adesign):
-
-- [Vsock flow control](https://github.com/onexay/msl/issues/36) documents why some streams use credit framing.
-- [Memory reclaim](https://github.com/onexay/msl/issues/37) explains why `autoMemoryReclaim` cannot return memory through Virtualization.framework.
-- [VS Code integration](https://github.com/onexay/msl/issues/38) tracks integration options and open questions.
+Open design questions and decisions are tracked in GitHub issues with the [`design` label](https://github.com/onexay/msl/issues?q=label%3Adesign).
 
 ## Project and legal records
 

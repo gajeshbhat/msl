@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 import Foundation
 
-/// A distro's own disk (#50): a sparse ext4 image, `ext4.img` in the distro's
+/// A distro's own disk: a sparse ext4 image, `ext4.img` in the distro's
 /// location folder (WSL's ext4.vhdx). The disks of registered distros are
 /// attached to the VM as virtio-blk when it boots; one that appears while the
 /// VM runs is mounted in the guest through a loop device over the Mac share.

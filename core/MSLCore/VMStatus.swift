@@ -28,7 +28,7 @@ public struct VMSettings: Codable, Equatable, Sendable {
     }
 }
 
-/// data.img: the shared disk of the distros from before #50.
+/// data.img: the shared disk of the distros from before per-distro disks.
 public struct DiskStatus: Codable, Equatable, Sendable {
     public var maxBytes: UInt64          // apparent size of data.img
     public var macUsedBytes: UInt64      // what it occupies on the Mac (sparse)
@@ -41,7 +41,7 @@ public struct DiskStatus: Codable, Equatable, Sendable {
     }
 }
 
-/// The distros' own disks (#50), added up.
+/// The distros' own disks, added up.
 public struct OwnDisksStatus: Codable, Equatable, Sendable {
     public var count: Int
     public var maxBytes: UInt64       // apparent sizes

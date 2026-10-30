@@ -26,7 +26,7 @@ use tonic::{Request, Response, Status};
 const CONTROL_PORT: u32 = 1024;
 const FIRST_AGENT_PORT: u32 = 2000;
 const DATA: &str = "/var/lib/msl";
-/// The distros' own disks (#50): each is mounted at `/run/msl-disks/<id>/rootfs`,
+/// The distros' own disks: each is mounted at `/run/msl-disks/<id>/rootfs`,
 /// so its filesystem root is the distro's root, as in WSL's ext4.vhdx.
 const DISKS: &str = "/run/msl-disks";
 const SYS_BLOCK: &str = "/sys/block";
@@ -97,7 +97,7 @@ fn check_id(id: &str) -> Result<(), Status> {
 }
 
 /// A distro's directory: its own disk's mount point when attached, else its
-/// directory on data.img (distros from before #50).
+/// directory on data.img (distros from before per-distro disks).
 fn distro_dir(id: &str) -> Result<PathBuf, Status> {
     check_id(id)?;
     if attached().lock().unwrap().contains_key(id) {
