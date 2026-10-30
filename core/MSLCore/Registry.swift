@@ -12,7 +12,7 @@ public struct DistroRecord: Codable, Equatable, Sendable {
     public var oobeDefaultUid: UInt32?
     public var oobePending: Bool = false
     public var createdAt: Date = Date()
-    /// Its own disk (#50); nil for a distro still kept on the shared data.img.
+    /// Its own disk; nil for a distro still kept on the shared data.img.
     /// Optional, so a registry.json from before it still decodes.
     public var disk: DistroDiskInfo?
 

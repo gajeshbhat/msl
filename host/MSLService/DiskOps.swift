@@ -5,7 +5,7 @@ import GRPCCore
 import MSLCore
 import MSLProtocol
 
-/// WSL's disk operations on a distro's own disk (#50): --manage --move and
+/// WSL's disk operations on a distro's own disk: --manage --move and
 /// --resize, --export --vhd, --import --vhd and --import-in-place. msl's disk
 /// images are raw ext4 (not VHDX), with the distro's root at the filesystem
 /// root as in WSL's ext4.vhdx.

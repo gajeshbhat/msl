@@ -241,7 +241,7 @@ public final class VMHost: NSObject, VZVirtualMachineDelegate, @unchecked Sendab
         let data = VZVirtioBlockDeviceConfiguration(attachment: disk)
         data.blockDeviceIdentifier = "data"  // how mini-init finds it
         c.storageDevices = [data]
-        // The distros' own disks (#50), served by VZ like data.img: guest
+        // The distros' own disks, served by VZ like data.img: guest
         // flushes become F_FULLFSYNC (.full).
         var attached: [BootDisk] = []
         for d in disks.prefix(DistroDisk.maxBootDisks) {

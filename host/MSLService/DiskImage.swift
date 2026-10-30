@@ -4,7 +4,7 @@ import Foundation
 import MSLCore
 import SystemPackage
 
-/// Creating a distro's own disk (#50): a sparse ext4 image.
+/// Creating a distro's own disk: a sparse ext4 image.
 enum DiskImage {
     /// Format a new sparse ext4 image of about `size` bytes at `url` and
     /// return its UUID (the formatter picks one; it can't be set).

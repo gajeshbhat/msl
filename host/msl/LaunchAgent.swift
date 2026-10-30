@@ -2,7 +2,7 @@
 import Foundation
 import MSLCore
 
-/// msld as a LaunchAgent (#52). launchd holds msld.sock and starts msld on the
+/// msld as a LaunchAgent. launchd holds msld.sock and starts msld on the
 /// first connection (so it still runs only on demand), and at logout, restart
 /// or shutdown sends it SIGTERM and waits ExitTimeOut for it to shut the VM
 /// down cleanly. Used by an installed msl with the default home; a development

@@ -4,7 +4,7 @@ import GRPCCore
 import MSLCore
 import MSLProtocol
 
-/// The distros' own disks (#50) while the VM runs.
+/// The distros' own disks while the VM runs.
 ///
 /// Every registered distro's ext4.img is attached as virtio-blk when the VM
 /// boots (up to DistroDisk.maxBootDisks), served by Virtualization.framework

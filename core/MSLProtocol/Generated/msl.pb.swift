@@ -185,7 +185,7 @@ public nonisolated struct Msl_V1_ShutdownRequest: Sendable {
   // methods supported on all messages.
 
   /// How long distros get to stop before they're killed; 0 = the default (10 s).
-  /// msld passes less when macOS is shutting down (#52).
+  /// msld passes less when macOS is shutting down.
   public var graceMs: UInt32 = 0
 
   public var unknownFields = SwiftProtobuf.UnknownStorage()
@@ -358,7 +358,7 @@ public nonisolated struct Msl_V1_ImportDistroRequest: Sendable {
 
 /// A raw stream the guest dials back to the host: a guest-initiated vsock
 /// connection to host `port` (CID 2), which a stalled host reader can't freeze
-/// (#36). The guest writes `token` first; the host takes the first connection
+///. The guest writes `token` first; the host takes the first connection
 /// with it. A stream the guest writes ends with eof.
 public nonisolated struct Msl_V1_HostStream: Sendable {
   // SwiftProtobuf.Message conformance is added in an extension below. See the
@@ -781,7 +781,7 @@ public nonisolated struct Msl_V1_RunRequest: @unchecked Sendable {
 
   /// The host ports the guest connects to for the session's streams
   /// (guest-initiated vsock connections, which a stalled host reader can't
-  /// freeze, #36); they carry raw bytes, with no framing.
+  /// freeze); they carry raw bytes, with no framing.
   public var dialBack: Msl_V1_DialBack {
     get {_storage._dialBack ?? Msl_V1_DialBack()}
     set {_uniqueStorage()._dialBack = newValue}

@@ -3,7 +3,7 @@
 // listening socket (the 0600 Unix socket, or 127.0.0.1 with fileViewTransport
 // = tcp) and, for each connection macOS's NFS client opens, passes it a vsock
 // stream to the guest's NFS server (see RelayMessage). msl-fileviewd checks
-// every RPC call (RPCFilter, #1) and copies the bytes, so msld never carries
+// every RPC call (RPCFilter) and copies the bytes, so msld never carries
 // them; msld keeps mounting the distros and opens the MOUNT window for it.
 import Foundation
 import MSLCore

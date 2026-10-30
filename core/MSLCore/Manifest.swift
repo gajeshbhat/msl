@@ -48,7 +48,7 @@ public struct Manifest: Decodable, Sendable {
 
     public var installable: [Entry] { installable(rosetta: false) }
 
-    /// x86_64-only distributions are deferred (Nitrogen, #40): hidden from
+    /// x86_64-only distributions are deferred (Nitrogen): hidden from
     /// `--list --online` and refused by `--install`. `--from-file` still works.
     public static let x86Supported = false
 
